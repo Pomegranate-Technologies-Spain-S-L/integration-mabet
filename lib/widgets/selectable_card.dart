@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:rommaana_form/models/product_card_data.dart'; // Import the new data model
+import 'package:rommaana_form/models/product_card_data.dart';
 
-// Custom widget for a selectable card
 class SelectableCard extends StatefulWidget {
-  final ProductCardData data; // Now accepts a ProductCardData object
+  final ProductCardData data;
   final bool isSelected;
   final VoidCallback onTap;
 
@@ -19,7 +18,7 @@ class SelectableCard extends StatefulWidget {
 }
 
 class _SelectableCardState extends State<SelectableCard> {
-  bool _isExpanded = false; // State to manage description expansion
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -32,28 +31,27 @@ class _SelectableCardState extends State<SelectableCard> {
           width: widget.isSelected ? 3.0 : 1.0,
         ),
       ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: widget.onTap,
         borderRadius: BorderRadius.circular(12.0),
         child: Padding(
-          padding: const EdgeInsets.all(16.0), // Slightly reduced padding for more content space
+          padding: const EdgeInsets.all(16.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start, // Align content to start
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image
               Center(
                 child: Image.network(
                   widget.data.img,
-                  width: 100, // Adjust size as needed
+                  width: 100,
                   height: 100,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.broken_image, size: 100, color: Colors.grey); // Fallback for broken image
+                    return const Icon(Icons.broken_image, size: 100, color: Colors.grey);
                   },
                 ),
               ),
               const SizedBox(height: 12.0),
-              // Product ID
               Text(
                 'Product ID: ${widget.data.productId}',
                 style: TextStyle(
@@ -98,6 +96,15 @@ class _SelectableCardState extends State<SelectableCard> {
                         ),
                       ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 8.0),
+              Text(
+                'Price Range: ${widget.data.price['lowerPrice']} - ${widget.data.price['higherPrice']}',
+                style: const TextStyle(
+                  fontSize: 15.0,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
                 ),
               ),
               const SizedBox(height: 8.0),

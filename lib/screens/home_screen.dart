@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rommaana_form/widgets/step1_form.dart';
 import 'package:rommaana_form/widgets/step2_form.dart';
-import 'package:rommaana_form/widgets/step3_form.dart'; // Import Step3Form
+import 'package:rommaana_form/widgets/step3_form.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -13,22 +13,19 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _currentStep = 0; // State variable to track the current step
-  int? _selectedProductId; // Stores the selected product ID (int) from Step1Form
-  int? _customerId; // Stores the customer ID (int) received from Step2Form API response
-  int? _dataRequirementsId; // Stores the data requirements ID (int) received from Step3Form API response
+  int _currentStep = 0;
+  int? _selectedProductId;
+  int? _customerId;
+  String? _token;
 
-  // Data collected from forms (can be expanded into a dedicated data model later)
-  Map<String, dynamic> _step2FormData = {}; // Stores all data from Step2Form
-  Map<String, dynamic> _step3FormData = {}; // Stores all data from Step3Form
+  Map<String, dynamic> _step2FormData = {};
+  Map<String, dynamic> _step3FormData = {};
 
   @override
   void initState() {
     super.initState();
-    // No need to initialize _steps here anymore, as it will be built dynamically
   }
 
-  // Method to build the widget for the current step dynamically
   Widget _buildCurrentStepWidget() {
     switch (_currentStep) {
       case 0:
@@ -58,14 +55,18 @@ class _MyHomePageState extends State<MyHomePage> {
               print('Advancing from Step 2 to Step 3...');
             });
           },
+          onTokenReceived: (String? receivedToken) { // This is how Step2Form passes the token UP to MyHomePage
+            setState(() {
+              _token = receivedToken;
+              print('MyHomePage received token: $_token');
+            });
+          },
         );
       case 2:
-      // Step 3: Policy Details and Item List Form
-      // This is now built dynamically, ensuring _selectedProductId and _customerId are up-to-date
         return Step3Form(
-          insuranceId: _selectedProductId, // Pass selectedProductId from Step1
-          customerId: _customerId, // Pass customerId from Step2
-          // We will add onStepCompleted callback for Step3Form later when its logic is ready
+          insuranceId: _selectedProductId,
+          customerId: _customerId,
+          token: _token, // Pass the token to Step3Form
         );
       default:
         return const Center(child: Text('Form Completed!')); // Or a final summary screen
@@ -81,11 +82,9 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Column(
         children: <Widget>[
-          // Display the current step's widget dynamically.
           Expanded(
-            child: _buildCurrentStepWidget(), // Call the helper method here
+            child: _buildCurrentStepWidget(),
           ),
-          // Global navigation buttons are removed. Each step manages its own "Next" button.
         ],
       ),
     );

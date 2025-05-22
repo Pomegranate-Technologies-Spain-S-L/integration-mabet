@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
 import 'package:http/http.dart' as http; // Import the http package
-import 'dart:convert'; // For JSON encoding
+import 'dart:convert';
 
-// Step 2 Form for personal details
 class Step2Form extends StatefulWidget {
-  // New: Callback to notify parent to advance step and pass data
   final Function(Map<String, dynamic> formData, int? customerId) onStepCompleted;
+  final ValueChanged<String?> onTokenReceived;
 
   const Step2Form({
     super.key,
-    required this.onStepCompleted, // Make the callback required
+    required this.onStepCompleted,
+    required this.onTokenReceived,
   });
 
   @override
@@ -18,10 +18,8 @@ class Step2Form extends StatefulWidget {
 }
 
 class _Step2FormState extends State<Step2Form> {
-  // Internal GlobalKey for this form's validation
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
-  // Controllers for text input fields
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _nationalityController = TextEditingController();
@@ -32,20 +30,21 @@ class _Step2FormState extends State<Step2Form> {
   final TextEditingController _phoneNumberController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
 
-  // State variable for marital status dropdown
+  bool _showNationalIdField = true;
+
   String? _selectedMaritalStatus;
   final List<String> _maritalStatuses = [
     'Single',
-    'Married'
+    'Married',
+    'Divorced',
+    'Widowed'
   ];
 
-  // State variable to track if the form is currently valid
   bool _isFormValid = false;
 
   @override
   void initState() {
     super.initState();
-    // Add listeners to all controllers and the dropdown to trigger validity checks
     _nameController.addListener(_updateFormValidity);
     _lastNameController.addListener(_updateFormValidity);
     _nationalityController.addListener(_updateFormValidity);
@@ -56,24 +55,22 @@ class _Step2FormState extends State<Step2Form> {
     _phoneNumberController.addListener(_updateFormValidity);
     _addressController.addListener(_updateFormValidity);
 
-    // Perform an initial validation check after the first frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateFormValidity();
     });
   }
 
-  // Helper method to update the _isFormValid state
   void _updateFormValidity() {
-    // Calling validate() here will trigger validators and update error messages.
-    // We then update our internal _isFormValid state.
     setState(() {
       _isFormValid = _formKey.currentState?.validate() ?? false;
+      if (_selectedMaritalStatus == null) {
+        _isFormValid = false;
+      }
     });
   }
 
   @override
   void dispose() {
-    // Remove listeners and dispose controllers to free up resources
     _nameController.removeListener(_updateFormValidity);
     _lastNameController.removeListener(_updateFormValidity);
     _nationalityController.removeListener(_updateFormValidity);
@@ -96,20 +93,18 @@ class _Step2FormState extends State<Step2Form> {
     super.dispose();
   }
 
-  // Function to show a date picker
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(), // Set initial date to today
-      firstDate: DateTime(1900), // Allow selection from 1900
-      lastDate: DateTime.now(), // Don't allow future dates
+      initialDate: DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
     );
     if (picked != null) {
       setState(() {
-        // Format the selected date and update the text field
         _birthdateController.text = DateFormat('yyyy-MM-dd').format(picked);
       });
-      _updateFormValidity(); // Re-validate and update button state after date selection
+      _updateFormValidity();
     }
   }
 
@@ -126,7 +121,18 @@ class _Step2FormState extends State<Step2Form> {
 
   // Method to handle "Next" button press (when form is valid)
   void _handleNext() async {
-    // This method will only be called if _isFormValid is true
+    // Explicitly validate the form when the button is pressed
+    if (!_formKey.currentState!.validate()) {
+      _showSnackBar('Please fill all required fields correctly.', color: Colors.red);
+      return;
+    }
+    _updateFormValidity(); // Final check before submission
+
+    if (!_isFormValid) {
+      _showSnackBar('Please fill all required fields correctly to proceed.', color: Colors.red);
+      return;
+    }
+
     print('--- Step 2 Form is Valid! ---');
 
     // Collect data from controllers
@@ -134,29 +140,27 @@ class _Step2FormState extends State<Step2Form> {
       'name': _nameController.text,
       'lastName': _lastNameController.text,
       'nationality': _nationalityController.text,
-      'nationalId': _nationalIdController.text,
-      'iqama': _iqamaController.text,
+      'nationalId': _showNationalIdField ? _nationalIdController.text : "", // Send National ID if visible, else empty
+      'iqama': !_showNationalIdField ? _iqamaController.text : "", // Send Iqama if visible, else empty
       'birthdate': _birthdateController.text,
       'email': _emailController.text,
       'phoneNumber': _phoneNumberController.text,
       'address': _addressController.text,
-      'maritalStatus': _selectedMaritalStatus ?? '', // Use empty string if not selected
+      'maritalStatus': _selectedMaritalStatus ?? '',
     };
 
     print('Sending data: $formData');
 
     try {
       final response = await http.post(
-        // Changed localhost to 10.0.2.2 for Android emulator access to host machine
-        Uri.parse('http://10.0.2.2:4000/api/customer/create'),
+        Uri.parse('http://localhost:4000/api/customer/create'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
-        body: jsonEncode(formData), // Encode the map to a JSON string
+        body: jsonEncode(formData),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Request successful
         print('Raw response from server: ${response.body}');
 
         try {
@@ -166,21 +170,30 @@ class _Step2FormState extends State<Step2Form> {
           if (message == "Customer created successfully") {
             print('SUCCESS: Customer created successfully!');
             final int? customerId = responseJson['customer']?['id'];
+            final String? token = responseJson['token'];
+
             if (customerId != null) {
               print('Extracted Customer ID: $customerId');
-              // Call the onStepCompleted callback to pass data and customerId to MyHomePage
-              widget.onStepCompleted(formData, customerId);
             } else {
               print('WARNING: Customer ID not found in successful response.');
-              _showSnackBar('Customer created, but ID not found.', color: Colors.orange);
-              // Still call onStepCompleted, but with null customerId
-              widget.onStepCompleted(formData, null);
             }
+
+            widget.onTokenReceived.call(token);
+
+            widget.onStepCompleted(formData, customerId);
             _showSnackBar('Customer created successfully!', color: Colors.green);
+
           } else if (message == "Customer already exists") {
             print('INFO: Customer already exists. Message from server: $message');
             _showSnackBar('Customer already exists!', color: Colors.orange);
-            // Do not advance step if customer already exists, user needs to correct
+            // If customer exists, you might still get a customer ID and potentially a token.
+            final int? customerId = responseJson['customer']?['id'];
+            final String? token = responseJson['token']; // Check if token is provided even for existing customer
+
+            // Call the onTokenReceived callback to pass any token received
+            widget.onTokenReceived.call(token);
+
+            // Do not advance step if customer already exists, user needs to correct or confirm
           }
           else {
             // Server responded with 200/201 but the message indicates an issue
@@ -216,7 +229,7 @@ class _Step2FormState extends State<Step2Form> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             const Text(
-              'Step 2: Personal Details',
+              'Personal Details', // Removed "Step 2:"
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
@@ -272,42 +285,61 @@ class _Step2FormState extends State<Step2Form> {
               },
             ),
             const SizedBox(height: 16),
-            // National ID Field (One of National ID or Iqama is required)
-            TextFormField(
-              controller: _nationalIdController,
-              decoration: const InputDecoration(
-                labelText: 'National ID *', // Indicate one of them is required
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.credit_card),
-              ),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                // Validate if either National ID or Iqama is filled
-                if (_nationalIdController.text.isEmpty && _iqamaController.text.isEmpty) {
-                  return 'Either National ID or Iqama is required';
-                }
-                return null;
+
+            // Toggle for National ID / Iqama
+            SwitchListTile(
+              title: Text(_showNationalIdField ? 'Use Iqama instead of National ID' : 'Use National ID instead of Iqama'),
+              value: !_showNationalIdField, // If true, show Iqama; if false, show National ID
+              onChanged: (bool value) {
+                setState(() {
+                  _showNationalIdField = !value; // Toggle the flag
+                  // Clear the content of the hidden field when toggling
+                  if (_showNationalIdField) {
+                    _iqamaController.clear();
+                  } else {
+                    _nationalIdController.clear();
+                  }
+                });
+                _updateFormValidity(); // Re-validate to update button state
               },
             ),
             const SizedBox(height: 16),
-            // Iqama Field (One of National ID or Iqama is required)
-            TextFormField(
-              controller: _iqamaController,
-              decoration: const InputDecoration(
-                labelText: 'Iqama (if applicable) *', // Indicate one of them is required
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.badge),
+
+            // Conditionally display National ID or Iqama field
+            if (_showNationalIdField)
+              TextFormField(
+                controller: _nationalIdController,
+                decoration: const InputDecoration(
+                  labelText: 'National ID *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.credit_card),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'National ID is required';
+                  }
+                  return null;
+                },
+              )
+            else
+              TextFormField(
+                controller: _iqamaController,
+                decoration: const InputDecoration(
+                  labelText: 'Iqama *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.badge),
+                ),
+                keyboardType: TextInputType.text,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Iqama is required';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.text,
-              validator: (value) {
-                // This validator will also check the combined condition
-                if (_nationalIdController.text.isEmpty && _iqamaController.text.isEmpty) {
-                  return 'Either National ID or Iqama is required';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 16), // Spacing after the ID field
+
             // Birthdate Field with Date Picker (Required)
             TextFormField(
               controller: _birthdateController,
@@ -382,8 +414,8 @@ class _Step2FormState extends State<Step2Form> {
                 return null;
               },
             ),
-            const SizedBox(height: 16),
-            // Marital Status Dropdown (Required)
+            const SizedBox(height: 16), // Spacing before marital status
+            // Marital Status Dropdown (Re-added)
             DropdownButtonFormField<String>(
               value: _selectedMaritalStatus,
               decoration: const InputDecoration(
@@ -396,7 +428,7 @@ class _Step2FormState extends State<Step2Form> {
                 setState(() {
                   _selectedMaritalStatus = newValue;
                 });
-                _updateFormValidity(); // Re-validate and update button state after selection
+                _updateFormValidity(); // Re-validate and update button state
               },
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -423,4 +455,3 @@ class _Step2FormState extends State<Step2Form> {
     );
   }
 }
-

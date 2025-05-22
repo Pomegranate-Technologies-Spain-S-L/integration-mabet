@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:rommaana_form/widgets/selectable_card.dart';
-import 'package:rommaana_form/models/product_card_data.dart'; // Import the new data model
+import 'package:rommaana_form/models/product_card_data.dart';
 
-// Step 1 Form with selectable cards
 class Step1Form extends StatefulWidget {
-  // Callback function to send the selected card's integer ID to the parent
   final ValueChanged<int?> onCardSelected;
-  // Callback function to notify the parent to advance to the next step
   final VoidCallback onStepCompleted;
 
   const Step1Form({
     super.key,
     required this.onCardSelected,
-    required this.onStepCompleted, // Make the onStepCompleted callback required
+    required this.onStepCompleted,
   });
 
   @override
@@ -20,10 +17,8 @@ class Step1Form extends StatefulWidget {
 }
 
 class _Step1FormState extends State<Step1Form> {
-  int? _selectedCardIndex; // State variable to keep track of the currently selected card index
+  int? _selectedCardIndex;
 
-  // Example data for the cards, parsed into ProductCardData objects
-  // In a real app, this data would likely come from an API call
   final List<ProductCardData> _cardData = [
     ProductCardData.fromJson({
       "id": 13,
@@ -80,7 +75,6 @@ class _Step1FormState extends State<Step1Form> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine if the "Next" button should be enabled
     bool isNextButtonEnabled = _selectedCardIndex != null;
 
     return Padding(
@@ -89,26 +83,25 @@ class _Step1FormState extends State<Step1Form> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Text(
-            'Step 1: Choose an Option',
+            'Choose an Option',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 20),
-          // Use ListView.builder for scrollable list of cards
           Expanded(
             child: ListView.builder(
+              clipBehavior: Clip.none,
               itemCount: _cardData.length,
               itemBuilder: (context, index) {
                 final card = _cardData[index];
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0), // Spacing between cards
+                  padding: const EdgeInsets.only(bottom: 16.0),
                   child: SelectableCard(
-                    data: card, // Pass the ProductCardData object
+                    data: card,
                     isSelected: _selectedCardIndex == index,
                     onTap: () {
                       setState(() {
                         _selectedCardIndex = index;
-                        // Pass the integer 'id' from the selected card data
                         widget.onCardSelected(card.id);
                         print('Selected: ${card.name} (ID: ${card.id})');
                       });
@@ -118,11 +111,9 @@ class _Step1FormState extends State<Step1Form> {
               },
             ),
           ),
-          // Removed the "You selected: ..." text
-          const SizedBox(height: 20), // Spacing before the button
-          // "Next" button for Step 1
+          const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: isNextButtonEnabled ? widget.onStepCompleted : null, // Call parent callback if enabled
+            onPressed: isNextButtonEnabled ? widget.onStepCompleted : null,
             child: const Text('Next'),
           ),
         ],
@@ -130,4 +121,3 @@ class _Step1FormState extends State<Step1Form> {
     );
   }
 }
-

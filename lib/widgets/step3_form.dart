@@ -25,21 +25,16 @@ class Item {
   }
 }
 
-// ItemInputRow widget is no longer needed as we will have a single item directly in Step3Form
-
 class Step3Form extends StatefulWidget {
-  // New: Parameters passed from previous steps (e.g., from MyHomePage)
   final int? insuranceId;    // From Step1Form
   final int? customerId;     // From Step2Form
-  // Removed: Callback function to notify parent to advance step and pass data
-  // final Function(Map<String, dynamic> formData, int? dataRequirementsId) onStepCompleted;
-
+  final String? token;       // Token received from MyHomePage
 
   const Step3Form({
     super.key,
-    required this.insuranceId,   // Make it required
-    required this.customerId,    // Make it required
-    // Removed: required this.onStepCompleted,
+    required this.insuranceId,
+    required this.customerId,
+    this.token, // Receive the token here
   });
 
   @override
@@ -50,17 +45,16 @@ class _Step3FormState extends State<Step3Form> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   // Policy Holder Details fields
-  String? _selectedMaritalStatus;
-  final List<String> _maritalStatuses = ['Married', 'Single'];
   bool _hasPreviousClaims = false;
   bool _previousProposalRejected = false;
   final TextEditingController _policyStartDateController = TextEditingController();
 
   // Address Details fields
-  bool _differentLocation = false; // Corresponds to "Yes" or "No"
-  final TextEditingController _buildingNumberController = TextEditingController();
-  final TextEditingController _additionalNumberController = TextEditingController(); // This is optional
-  final TextEditingController _landmarksController = TextEditingController(); // Required
+  // Removed: bool _differentLocation = false;
+  // Removed: final TextEditingController _buildingNumberController = TextEditingController();
+  // Removed: final TextEditingController _additionalNumberController = TextEditingController();
+  // Removed: final TextEditingController _landmarksController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController(); // New: Single address field
 
   // Building Details fields
   String? _selectedBuildingType;
@@ -90,29 +84,27 @@ class _Step3FormState extends State<Step3Form> {
   final TextEditingController _itemDescriptionController = TextEditingController();
   final TextEditingController _itemValueController = TextEditingController();
 
-
   // State variable to track if the form is currently valid (for the button)
   bool _isFormValid = false;
+  double? _offerPrice; // To store the price from the new offer
+  bool _showPurchaseButton = false; // To control visibility of purchase button
+  bool _calculationCompleted = false; // New: To hide calculate button after calculation
 
   @override
   void initState() {
     super.initState();
     // Add listeners to update form validity
     _policyStartDateController.addListener(_updateFormValidity);
-    _buildingNumberController.addListener(_updateFormValidity);
-    _additionalNumberController.addListener(_updateFormValidity);
-    _landmarksController.addListener(_updateFormValidity);
+    _addressController.addListener(_updateFormValidity); // New listener for address
 
     // Listeners for Building Details
     _floorNumberController.addListener(_updateFormValidity);
     _numberOfFloorsController.addListener(_updateFormValidity);
     _propertyAreaController.addListener(_updateFormValidity);
 
-    // Listeners for single Item fields
+    // Listeners for single Item fields (now required again)
     _itemDescriptionController.addListener(_updateFormValidity);
     _itemValueController.addListener(_updateFormValidity);
-
-    // No specific listeners needed for boolean SwitchListTiles, as onChanged handles setState and _updateFormValidity
 
     // Perform an initial validation check after the first frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -122,12 +114,10 @@ class _Step3FormState extends State<Step3Form> {
 
   // Helper method to update the _isFormValid state
   void _updateFormValidity() {
-    // Calling validate() here will trigger validators and update error messages.
-    // We then update our internal _isFormValid state.
     setState(() {
+      // Validate only required fields. Item category is now optional.
       _isFormValid = _formKey.currentState?.validate() ?? false;
-      // Manually check dropdowns and switches as their changes don't automatically trigger TextFormField validators
-      if (_selectedMaritalStatus == null || _selectedBuildingType == null || _selectedItemCategory == null) {
+      if (_selectedBuildingType == null || _selectedItemCategory == null) { // Item category is now required again
         _isFormValid = false;
       }
     });
@@ -138,12 +128,8 @@ class _Step3FormState extends State<Step3Form> {
     // Dispose the controllers to free up resources
     _policyStartDateController.removeListener(_updateFormValidity);
     _policyStartDateController.dispose();
-    _buildingNumberController.removeListener(_updateFormValidity);
-    _buildingNumberController.dispose();
-    _additionalNumberController.removeListener(_updateFormValidity);
-    _additionalNumberController.dispose();
-    _landmarksController.removeListener(_updateFormValidity);
-    _landmarksController.dispose();
+    _addressController.removeListener(_updateFormValidity); // Dispose new address controller
+    _addressController.dispose();
 
     // Disposals for Building Details
     _floorNumberController.removeListener(_updateFormValidity);
@@ -175,7 +161,7 @@ class _Step3FormState extends State<Step3Form> {
         // Format the selected date to YYYY-MM-DD and update the text field
         _policyStartDateController.text = DateFormat('yyyy-MM-dd').format(picked);
       });
-      _updateFormValidity(); // Re-validate and update button state after date selection
+      _updateFormValidity();
     }
   }
 
@@ -190,8 +176,8 @@ class _Step3FormState extends State<Step3Form> {
     );
   }
 
-  // Method to handle "Next" button press (when form is valid)
-  void _handleNext() async {
+  // Method to handle "Calculate" button press (when form is valid)
+  void _handleCalculate() async {
     if (!_formKey.currentState!.validate()) {
       _showSnackBar('Please fill all required fields correctly.', color: Colors.red);
       return;
@@ -205,26 +191,35 @@ class _Step3FormState extends State<Step3Form> {
 
     print('--- Step 3 Form is Valid! ---');
 
+    // Prepare Building Details based on selected type
+    Map<String, dynamic> buildingDetailsPayload = {
+      'building_type': _selectedBuildingType ?? '',
+      'floor_number': '',
+      'basements': false,
+      'number_of_floors': '',
+      'property_area': '',
+    };
+
+    if (_selectedBuildingType == 'Apartment') {
+      buildingDetailsPayload['floor_number'] = _floorNumberController.text;
+      buildingDetailsPayload['property_area'] = _propertyAreaController.text;
+    } else if (_selectedBuildingType == 'Townhouse' || _selectedBuildingType == 'Villa') {
+      buildingDetailsPayload['basements'] = _hasBasement;
+      buildingDetailsPayload['number_of_floors'] = _numberOfFloorsController.text;
+      buildingDetailsPayload['property_area'] = _propertyAreaController.text;
+    }
+
     // Collect data from all form fields for the first request
     final Map<String, dynamic> dataRequirementsPayload = {
-      'marital_status': _selectedMaritalStatus ?? '',
-      'previous_claims': _hasPreviousClaims, // Corrected key from previous_clams
+      'marital_status': "", // Always send empty string as requested
+      'previous_claims': _hasPreviousClaims,
       'previous_rejected': _previousProposalRejected,
       'policy_start_date': _policyStartDateController.text,
-      'insurance_id': 1,
+      'insurance_id': 1, // Static 1 as requested
       'addressDetails': {
-        'different_location': _differentLocation ? 'Yes' : 'No', // Changed to "Yes" or "No" string
-        'building_number': _buildingNumberController.text,
-        'additional_number': _additionalNumberController.text,
-        'landmarks': _landmarksController.text,
+        'address': _addressController.text, // Single address field
       },
-      'buildingDetails': { // Moved to top-level as per desired JSON structure
-        'building_type': _selectedBuildingType ?? '',
-        'floor_number': _floorNumberController.text,
-        'basements': _hasBasement, // Corrected key from basement
-        'number_of_floors': _numberOfFloorsController.text,
-        'property_area': _propertyAreaController.text,
-      },
+      'buildingDetails': buildingDetailsPayload, // Use the dynamically prepared payload
       'policyDetails': {
         'non_concrete': _nonConcrete,
         'owner': _isOwner,
@@ -232,10 +227,10 @@ class _Step3FormState extends State<Step3Form> {
         'has_cctv': _hasCCTV,
         'anti_theft_alarm': _antiTheftAlarm,
       },
-      'itemlist': { // Single item, so directly an object
+      'itemlist': {
         'item_category': _selectedItemCategory ?? '',
         'item_description': _itemDescriptionController.text,
-        'value': double.tryParse(_itemValueController.text) ?? 0.0, // Convert to double
+        'value': double.tryParse(_itemValueController.text) ?? 0.0,
       },
     };
 
@@ -245,9 +240,10 @@ class _Step3FormState extends State<Step3Form> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:4000/api/dataRequirements/create'),
+        Uri.parse('http://localhost:4000/api/dataRequirements/create'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
+          if (widget.token != null) 'Authorization': 'Bearer ${widget.token}', // Add token
         },
         body: jsonEncode(dataRequirementsPayload),
       );
@@ -257,7 +253,7 @@ class _Step3FormState extends State<Step3Form> {
         try {
           final Map<String, dynamic> responseJson = jsonDecode(response.body);
           final String? message = responseJson['message'];
-          dataRequirementsId = responseJson['data']?['id']; // Corrected to data.id
+          dataRequirementsId = responseJson['data']?['id'];
 
           if (message == "Data requirements created successfully") {
             print('SUCCESS: Data requirements created successfully!');
@@ -273,15 +269,16 @@ class _Step3FormState extends State<Step3Form> {
               final Map<String, dynamic> newOfferPayload = {
                 'customer_id': widget.customerId,
                 'data_requirements_id': dataRequirementsId,
-                'product_id': widget.insuranceId, // Use the actual insuranceId
+                'product_id': widget.insuranceId,
               };
 
               print('Sending data to newOffer/createNewOffer: $newOfferPayload');
 
               final offerResponse = await http.post(
-                Uri.parse('http://10.0.2.2:4000/api/newOffer/createNewOffer'),
+                Uri.parse('http://localhost:4000/api/newOffer/createNewOffer'),
                 headers: <String, String>{
                   'Content-Type': 'application/json; charset=UTF-8',
+                  if (widget.token != null) 'Authorization': 'Bearer ${widget.token}', // Add token
                 },
                 body: jsonEncode(newOfferPayload),
               );
@@ -291,27 +288,53 @@ class _Step3FormState extends State<Step3Form> {
                 try {
                   final Map<String, dynamic> offerResponseJson = jsonDecode(offerResponse.body);
                   final String? offerMessage = offerResponseJson['message'];
+                  // Corrected price extraction: responseJson['data']?['offer_price']
+                  final double? price = offerResponseJson['data']?['offer_price']?.toDouble();
 
                   if (offerMessage == "New offer created successfully") {
                     print('SUCCESS: Offer created successfully!');
                     _showSnackBar('Offer created successfully!', color: Colors.green);
+                    setState(() {
+                      _offerPrice = price; // Store the price
+                      _showPurchaseButton = true; // Show the purchase button
+                      _calculationCompleted = true; // Hide the calculate button
+                    });
                   } else {
                     _showSnackBar('Offer creation issue: $offerMessage', color: Colors.red);
                     print('ERROR: Offer creation server responded with success status, but message indicates an issue: $offerMessage');
+                    setState(() {
+                      _offerPrice = null; // Clear price on error
+                      _showPurchaseButton = false;
+                      _calculationCompleted = false; // Keep calculate button visible on error
+                    });
                   }
                 } catch (e) {
                   _showSnackBar('Failed to parse offer server response.', color: Colors.red);
                   print('ERROR: Failed to parse offer server response as JSON: $e');
+                  setState(() {
+                    _offerPrice = null;
+                    _showPurchaseButton = false;
+                    _calculationCompleted = false;
+                  });
                 }
               } else {
                 _showSnackBar('Offer request failed: Status ${offerResponse.statusCode}', color: Colors.red);
                 print('ERROR: Failed to send offer data. Status code: ${offerResponse.statusCode}');
                 print('Offer Response body: ${offerResponse.body}');
+                setState(() {
+                  _offerPrice = null;
+                  _showPurchaseButton = false;
+                  _calculationCompleted = false;
+                });
               }
             } else {
-              // Show message if customerId, insuranceId, or dataRequirementsId is missing for the second request
               _showSnackBar('Cannot create offer: Customer ID, Insurance ID, or Data Requirements ID is missing.', color: Colors.orange);
               print('INFO: Skipping offer creation because customerId (${widget.customerId}), insuranceId (${widget.insuranceId}), or dataRequirementsId ($dataRequirementsId) is null.');
+              setState(() {
+                _offerPrice = null;
+                _showPurchaseButton = false;
+                _calculationCompleted = false;
+              });
             }
             // --- End of second request handling ---
 
@@ -345,7 +368,7 @@ class _Step3FormState extends State<Step3Form> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             const Text(
-              'Step 3: Policy and Item Details',
+              'Policy and Item Details', // Removed "Step 3:"
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
@@ -357,36 +380,6 @@ class _Step3FormState extends State<Step3Form> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const Divider(height: 20, thickness: 1), // Visual separator
-            const SizedBox(height: 16),
-
-            // Marital Status Dropdown
-            DropdownButtonFormField<String>(
-              value: _selectedMaritalStatus,
-              decoration: const InputDecoration(
-                labelText: 'Marital Status *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.favorite),
-              ),
-              hint: const Text('Select Marital Status'),
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedMaritalStatus = newValue;
-                });
-                _updateFormValidity(); // Re-validate and update button state
-              },
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Marital Status is required';
-                }
-                return null;
-              },
-              items: _maritalStatuses.map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-            ),
             const SizedBox(height: 16),
 
             // Do you have any previous claims? (Boolean)
@@ -443,72 +436,23 @@ class _Step3FormState extends State<Step3Form> {
             const Divider(height: 20, thickness: 1), // Visual separator
             const SizedBox(height: 16),
 
-            // Different Location (Boolean) - Always visible
-            SwitchListTile(
-              title: const Text('Is this a different location? (Yes/No) *'),
-              value: _differentLocation,
-              onChanged: (bool value) {
-                setState(() {
-                  _differentLocation = value;
-                  // Clear fields if not a different location
-                  // This logic is still here for data consistency, but fields remain visible
-                  if (!value) {
-                    _buildingNumberController.clear();
-                    _additionalNumberController.clear();
-                    _landmarksController.clear();
-                  }
-                });
-                _updateFormValidity(); // Re-validate and update button state
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Building Number (Always visible, required)
+            // Single Address Field
             TextFormField(
-              controller: _buildingNumberController,
+              controller: _addressController,
               decoration: const InputDecoration(
-                labelText: 'Building Number *',
+                labelText: 'Address *',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.home),
+                prefixIcon: Icon(Icons.location_on),
               ),
-              keyboardType: TextInputType.text,
+              keyboardType: TextInputType.streetAddress,
+              maxLines: 3,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Building Number is required';
+                  return 'Address is required';
                 }
                 return null;
               },
             ),
-            const SizedBox(height: 16),
-            // Landmarks (Always visible, required)
-            TextFormField(
-              controller: _landmarksController,
-              decoration: const InputDecoration(
-                labelText: 'Landmarks *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.map),
-              ),
-              keyboardType: TextInputType.text,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Landmarks is required';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            // Additional Number (Always visible, Optional)
-            TextFormField(
-              controller: _additionalNumberController,
-              decoration: const InputDecoration(
-                labelText: 'Additional Number (Optional)',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.info_outline),
-              ),
-              keyboardType: TextInputType.text,
-              maxLines: 2, // Allow multiple lines for descriptive text
-            ),
-            const SizedBox(height: 16),
             const SizedBox(height: 20), // Spacing after section
 
             // Section 3: Building Details
@@ -531,6 +475,11 @@ class _Step3FormState extends State<Step3Form> {
               onChanged: (String? newValue) {
                 setState(() {
                   _selectedBuildingType = newValue;
+                  // Clear relevant fields when building type changes
+                  _floorNumberController.clear();
+                  _hasBasement = false;
+                  _numberOfFloorsController.clear();
+                  _propertyAreaController.clear();
                 });
                 _updateFormValidity(); // Re-validate and update button state
               },
@@ -549,71 +498,83 @@ class _Step3FormState extends State<Step3Form> {
             ),
             const SizedBox(height: 16),
 
-            // Floor Number
-            TextFormField(
-              controller: _floorNumberController,
-              decoration: const InputDecoration(
-                labelText: 'Floor Number *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.stairs),
+            // Dynamic Building Detail Fields based on _selectedBuildingType
+            if (_selectedBuildingType == 'Apartment') ...[
+              TextFormField(
+                controller: _floorNumberController,
+                decoration: const InputDecoration(
+                  labelText: 'Floor Number *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.stairs),
+                ),
+                keyboardType: TextInputType.text,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Floor Number is required';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.text,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Floor Number is required';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Basement (Boolean)
-            SwitchListTile(
-              title: const Text('Has Basement? *'),
-              value: _hasBasement,
-              onChanged: (bool value) {
-                setState(() {
-                  _hasBasement = value;
-                });
-                _updateFormValidity(); // Re-validate and update button state
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Number of Floors
-            TextFormField(
-              controller: _numberOfFloorsController,
-              decoration: const InputDecoration(
-                labelText: 'Number of Floors *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.layers),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _propertyAreaController,
+                decoration: const InputDecoration(
+                  labelText: 'Property Area (e.g., 120 sqm) *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.area_chart),
+                ),
+                keyboardType: TextInputType.text,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Property Area is required';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.text,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Number of Floors is required';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Property Area
-            TextFormField(
-              controller: _propertyAreaController,
-              decoration: const InputDecoration(
-                labelText: 'Property Area (e.g., 120 sqm) *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.area_chart),
+            ] else if (_selectedBuildingType == 'Townhouse' || _selectedBuildingType == 'Villa') ...[
+              SwitchListTile(
+                title: const Text('Has Basement? *'),
+                value: _hasBasement,
+                onChanged: (bool value) {
+                  setState(() {
+                    _hasBasement = value;
+                  });
+                  _updateFormValidity(); // Re-validate and update button state
+                },
               ),
-              keyboardType: TextInputType.text,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Property Area is required';
-                }
-                return null;
-              },
-            ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _numberOfFloorsController,
+                decoration: const InputDecoration(
+                  labelText: 'How many floors does the building have? *', // Changed label
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.layers),
+                ),
+                keyboardType: TextInputType.text,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Number of Floors is required';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _propertyAreaController,
+                decoration: const InputDecoration(
+                  labelText: 'What is the property area (e.g., 120 sqm)? *', // Changed label
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.area_chart),
+                ),
+                keyboardType: TextInputType.text,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Property Area is required';
+                  }
+                  return null;
+                },
+              ),
+            ],
             const SizedBox(height: 20), // Spacing after section
 
             // Section 4: Policy Details
@@ -689,7 +650,6 @@ class _Step3FormState extends State<Step3Form> {
             ),
             const SizedBox(height: 20), // Spacing after section
 
-
             // Section 5: Items List
             const Text(
               'Items List',
@@ -698,11 +658,11 @@ class _Step3FormState extends State<Step3Form> {
             const Divider(height: 20, thickness: 1), // Visual separator
             const SizedBox(height: 16),
 
-            // Item Category Dropdown (single item)
+            // Item Category Dropdown (now required again)
             DropdownButtonFormField<String>(
               value: _selectedItemCategory,
               decoration: const InputDecoration(
-                labelText: 'Item Category *',
+                labelText: 'Item Category *', // Required again
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.category),
               ),
@@ -711,7 +671,7 @@ class _Step3FormState extends State<Step3Form> {
                 setState(() {
                   _selectedItemCategory = newValue;
                 });
-                _updateFormValidity();
+                _updateFormValidity(); // Re-validate
               },
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -728,11 +688,11 @@ class _Step3FormState extends State<Step3Form> {
             ),
             const SizedBox(height: 16),
 
-            // Item Description (single item)
+            // Item Description (now required again)
             TextFormField(
               controller: _itemDescriptionController,
               decoration: const InputDecoration(
-                labelText: 'Item Description *',
+                labelText: 'Item Description *', // Required again
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.description),
               ),
@@ -746,11 +706,11 @@ class _Step3FormState extends State<Step3Form> {
             ),
             const SizedBox(height: 16),
 
-            // Value (in SAR) (single item)
+            // Value (in SAR) (now required again)
             TextFormField(
               controller: _itemValueController,
               decoration: const InputDecoration(
-                labelText: 'Value (in SAR) *',
+                labelText: 'Value (in SAR) *', // Required again
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.attach_money),
               ),
@@ -767,11 +727,39 @@ class _Step3FormState extends State<Step3Form> {
             ),
             const SizedBox(height: 20), // Spacing after section
 
-            // "Next" button for this form
-            ElevatedButton(
-              onPressed: _isFormValid ? _handleNext : null, // Enabled only if form is valid
-              child: const Text('Next'),
-            ),
+            // Display Offer Price if available
+            if (_offerPrice != null) ...[
+              const SizedBox(height: 20),
+              Text(
+                'Calculated Offer Price: ${_offerPrice!.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+            ],
+
+            // "Calculate" button for this form (hidden after calculation)
+            if (!_calculationCompleted)
+              ElevatedButton(
+                onPressed: _isFormValid ? _handleCalculate : null, // Enabled only if form is valid
+                child: const Text('Calculate'), // Changed button text
+              ),
+            const SizedBox(height: 10),
+
+            // Purchase button (conditionally visible)
+            if (_showPurchaseButton)
+              ElevatedButton(
+                onPressed: () {
+                  // Implement purchase logic here
+                  _showSnackBar('Purchased!', color: Colors.blue);
+                  print('Purchase button pressed!');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent, // A distinct color for purchase
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Purchase'),
+              ),
           ],
         ),
       ),
