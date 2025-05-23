@@ -153,7 +153,7 @@ class _Step2FormState extends State<Step2Form> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:4000/api/customer/create'),
+        Uri.parse('http://localhost:4000/api/customer/create'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
