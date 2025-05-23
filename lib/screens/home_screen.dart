@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:rommaana_form/widgets/offer_details.dart';
 import 'package:rommaana_form/widgets/step1_form.dart';
-import 'package:rommaana_form/widgets/step2_form.dart';
 import 'package:rommaana_form/widgets/step3_form.dart';
 
 class MyHomePage extends StatefulWidget {
@@ -15,11 +15,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _currentStep = 0;
   int? _selectedProductId;
-  int? _customerId;
-  String? _token;
-
-  Map<String, dynamic> _step2FormData = {};
-  Map<String, dynamic> _step3FormData = {};
+  Map<String, dynamic>? _offerDetails; // State variable to store offer details
 
   @override
   void initState() {
@@ -38,38 +34,37 @@ class _MyHomePageState extends State<MyHomePage> {
           },
           onStepCompleted: () {
             setState(() {
-              _currentStep++;
-              print('Advancing from Step 1 to Step 2...');
+              _currentStep++; // Advance to Step3Form
+              print('Advancing from Step 1 to Step 3...');
             });
           },
         );
       case 1:
-        return Step2Form(
-          onStepCompleted: (Map<String, dynamic> formData, int? customerId) {
-            setState(() {
-              _step2FormData = formData;
-              _customerId = customerId;
-              _currentStep++;
-              print('MyHomePage received Step 2 data: $_step2FormData');
-              print('MyHomePage received Customer ID: $_customerId');
-              print('Advancing from Step 2 to Step 3...');
-            });
-          },
-          onTokenReceived: (String? receivedToken) { // This is how Step2Form passes the token UP to MyHomePage
-            setState(() {
-              _token = receivedToken;
-              print('MyHomePage received token: $_token');
-            });
-          },
-        );
-      case 2:
         return Step3Form(
-          insuranceId: _selectedProductId,
-          customerId: _customerId,
-          token: _token, // Pass the token to Step3Form
+          productId: _selectedProductId,
+          onOfferCalculated: (Map<String, dynamic> data) {
+            // Store the received offer details, but DO NOT change the step here
+            setState(() {
+              _offerDetails = data;
+              print('MyHomePage received offer details after calculation: $_offerDetails');
+            });
+          },
+          onPurchaseCompleted: () {
+            // ONLY change the step when the purchase button is clicked
+            setState(() {
+              _currentStep++; // Advance to the OfferDetails screen
+              print('Advancing to Offer Details Screen after purchase click...');
+            });
+          },
         );
+      case 2: // Case for displaying offer details
+        if (_offerDetails != null) {
+          return OfferDetails(offerDetails: _offerDetails!);
+        } else {
+          return const Center(child: Text('No offer details available.'));
+        }
       default:
-        return const Center(child: Text('Form Completed!')); // Or a final summary screen
+        return const Center(child: Text('Form Completed!'));
     }
   }
 
