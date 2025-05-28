@@ -96,14 +96,25 @@ class OfferDetails extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 15),
-                    Text(
-                      offerPrice,
-                      style: TextStyle(
-                        fontSize: 48, // Much larger font size
-                        fontWeight: FontWeight.w900, // Extra bold
-                        color: Theme.of(context).colorScheme.primary, // Primary color for highlight
-                      ),
-                      textAlign: TextAlign.center,
+                    Row( // Use a Row to place the image and text side-by-side
+                      mainAxisAlignment: MainAxisAlignment.center, // Center the content horizontally
+                      children: [
+                        Image.network(
+                          'https://srid7vtf90.ufs.sh/f/B7pTWizqIefFQlyMmotSGusKrtMLn1pWQPURXgElVBT8H4jy',
+                          width: 40, // Adjust width for a larger icon to match the big text
+                          height: 40, // Adjust height for a larger icon
+                        ),
+                        const SizedBox(width: 10), // Add some spacing between the image and the text
+                        Text(
+                          offerPrice,
+                          style: TextStyle(
+                            fontSize: 48, // Much larger font size
+                            fontWeight: FontWeight.w900, // Extra bold
+                            color: Theme.of(context).colorScheme.primary, // Primary color for highlight
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 15),
                     Text(

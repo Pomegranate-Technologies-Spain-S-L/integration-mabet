@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
     const Color primaryRed = Color(0xFFEF4444);
 
     return MaterialApp(
-      title: 'Rommana',
+      title: 'Rommaana',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: primaryRed,
@@ -104,7 +104,7 @@ class MyApp extends StatelessWidget {
 
         fontFamily: 'Roboto',
       ),
-      home: const MyHomePage(title: 'Rommana'),
+      home: const MyHomePage(title: 'Rommaana'),
     );
   }
 }

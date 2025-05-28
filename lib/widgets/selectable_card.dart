@@ -99,13 +99,32 @@ class _SelectableCardState extends State<SelectableCard> {
                 ),
               ),
               const SizedBox(height: 8.0),
-              Text(
-                'Price Range: ${widget.data.price['lowerPrice']} - ${widget.data.price['higherPrice']}',
-                style: const TextStyle(
-                  fontSize: 15.0,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
+              Row( // Use a Row to align "Price Range:", the image, and the price values horizontally
+                mainAxisSize: MainAxisSize.min, // Keep the row size to a minimum to wrap its content
+                children: [
+                  const Text(
+                    'Price Range: ', // "Price Range: " as a separate Text widget
+                    style: TextStyle(
+                      fontSize: 15.0,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                  Image.network(
+                    'https://srid7vtf90.ufs.sh/f/B7pTWizqIefFQlyMmotSGusKrtMLn1pWQPURXgElVBT8H4jy',
+                    width: 18, // Adjust width for a smaller icon
+                    height: 18, // Adjust height for a smaller icon
+                  ),
+                  const SizedBox(width: 4), // Small spacing between image and price
+                  Text(
+                    '${widget.data.price['lowerPrice']} - ${widget.data.price['higherPrice']}',
+                    style: const TextStyle(
+                      fontSize: 15.0,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8.0),
               // Check icon if selected

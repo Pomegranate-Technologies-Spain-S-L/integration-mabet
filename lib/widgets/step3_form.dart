@@ -475,17 +475,17 @@ class _Step3FormState extends State<Step3Form> {
             ),
             const SizedBox(height: 16),
 
-            SwitchListTile(
-              title: const Text('Any previous proposal was rejected? *'),
-              value: _previousProposalRejected,
-              onChanged: (bool value) {
-                setState(() {
-                  _previousProposalRejected = value;
-                });
-                _updateFormValidity();
-              },
-            ),
-            const SizedBox(height: 16),
+            // SwitchListTile(
+            //   title: const Text('Any previous proposal was rejected? *'),
+            //   value: _previousProposalRejected,
+            //   onChanged: (bool value) {
+            //     setState(() {
+            //       _previousProposalRejected = value;
+            //     });
+            //     _updateFormValidity();
+            //   },
+            // ),
+            // const SizedBox(height: 16),
 
             TextFormField(
               controller: _policyStartDateController,
@@ -795,14 +795,27 @@ class _Step3FormState extends State<Step3Form> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 10),
-                      Text(
-                        '${_offerPrice!.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        textAlign: TextAlign.center,
+                      Row( // Use a Row to place the image and text side-by-side
+                        mainAxisAlignment: MainAxisAlignment.center, // Center the content in the row
+                        children: [
+                          Image.network(
+                            'https://srid7vtf90.ufs.sh/f/B7pTWizqIefFQlyMmotSGusKrtMLn1pWQPURXgElVBT8H4jy',
+                            width: 28, // Adjust the width as needed
+                            height: 28, // Adjust the height as needed
+                            // You might want to add a `fit` property like `BoxFit.contain`
+                            // if the image aspect ratio needs to be maintained.
+                          ),
+                          const SizedBox(width: 8), // Add some spacing between the image and the text
+                          Text(
+                            '${_offerPrice!.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -810,7 +823,6 @@ class _Step3FormState extends State<Step3Form> {
               ),
               const SizedBox(height: 20),
             ],
-
             if (!_calculationCompleted)
               ElevatedButton(
                 onPressed: _isFormValid ? _handleCalculate : null,
