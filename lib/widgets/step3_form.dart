@@ -191,7 +191,7 @@ class _Step3FormState extends State<Step3Form> {
 
     try {
       final customerResponse = await http.post(
-        Uri.parse('http://localhost:4000/api/customer/create'),
+        Uri.parse('https://api-test.rommaana.com/api/customer/create'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
@@ -297,7 +297,7 @@ class _Step3FormState extends State<Step3Form> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:4000/api/dataRequirements/create'),
+        Uri.parse('https://api-test.rommaana.com/api/dataRequirements/create'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
           if (token != null) 'Authorization': 'Bearer $token',
@@ -332,7 +332,7 @@ class _Step3FormState extends State<Step3Form> {
               print('Sending data to newOffer/createNewOffer: $newOfferPayload');
 
               final offerResponse = await http.post(
-                Uri.parse('http://localhost:4000/api/newOffer/createNewOffer'),
+                Uri.parse('https://api-test.rommaana.com/api/newOffer/createNewOffer'),
                 headers: <String, String>{
                   'Content-Type': 'application/json; charset=UTF-8',
                   if (token != null) 'Authorization': 'Bearer $token',
