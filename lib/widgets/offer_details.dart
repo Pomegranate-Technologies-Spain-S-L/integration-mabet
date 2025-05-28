@@ -63,11 +63,23 @@ class OfferDetails extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Text(
-                'Your Offer is Ready!',
+                'Congratulations!', // Main message
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 32, // Larger font size
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.primary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 8), // Small space between messages
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Text(
+                'Your Offer is Ready!', // Supporting message
+                style: TextStyle(
+                  fontSize: 20, // Smaller font size
+                  color: Colors.grey.shade700, // Subtler color
                 ),
                 textAlign: TextAlign.center,
               ),
